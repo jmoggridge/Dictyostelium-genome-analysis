@@ -6,8 +6,6 @@ output:
   pdf_document:
     highlight: tango
     df_print: kable
-    toc: true
-    toc_depth: 2
 urlcolor: blue
 ---
 
@@ -43,7 +41,7 @@ $ gunzip GCF_000004695.1_dicty_2.7_genomic.fna.gz
 $ mv GCF_000004695.1_dicty_2.7_genomic.fna ./dicty_genome.fna
 ```
 
-### How big is the genome?
+### Genome assembly size
   
 ```
 # remove lines with headers (>), strip newline characters (\n), count characters
@@ -52,7 +50,7 @@ $ grep -v '>' dicty_genome.fna | tr -d '\n' | wc -c
 The *D. discoideum* assembly has a size of 34.2 Mbp.  
   
   
-### How many chromosomes/scaffolds?
+### Number of chromosomes/scaffolds
 
 ```
 # count scaffold headings
@@ -99,7 +97,7 @@ ggplot(seqlen) +
 The mean scaffold length is `r round(mean(seqlen$Length)/1000, 1)` kbp. Scaffold lengths are shown in fig. 1.
 
 
-### N50
+### N50 & L50
 
 I was able to recreate the N50 (5,450,249 bp) and the L50 (3) statistics reported on NCBI as follows:
 
@@ -113,12 +111,11 @@ N50 <- function(scaffold_lengths){
   }
 }
 dicty.N50 <- N50(seqlen$Length)
-
-L50 <- which(seqlen$Length == dicty.N50)
+dicty.L50 <- which(sort(seqlen$Length, decreasing = T) == dicty.N50)
 ```
 
 
-### What percentage of the genome is N or n?
+### Ambiguous bases (Ns)
 
 ```
 # Ncontent
@@ -137,7 +134,7 @@ N_percent <- 23142 * 100 / 34204973
 Only a very small portion (`r round(N_percent, 3)` %) of the assembly are ambiguous bases (N).
 
 
-### What is the ratio of repetitive to unique sequence?
+### Ratio of repetitive to unique sequence
 
 ```
 # repetitive regions bases count
@@ -153,11 +150,13 @@ The ratio of repetitive to unique sequence is `r round(18093064/16088767, 2)`.
 
 ### What proportion of the genome is unplaced scaffolds?
 
-```{r message=FALSE, warning=FALSE}
+```{r message=FALSE, warning=FALSE, fig.cap='Table 1. '}
 seqlen %>% 
   group_by(Type) %>% 
   summarize(`Percent of Genome` = round(sum(Length)/sum(seqlen$Length)*100, 2))
 ```
+
+----
 
 ## Discussion
 
@@ -165,7 +164,7 @@ The *D. discoideum* reference genome is relatively small (34.2 Mbp) and the asse
 
 The  quality of the genome is surprisingly good, given that the effort was reliant on cloning and Sanger sequencing technology of the time, and dealt with complex repetitive regions that are difficult to assemble, as well as A+T-rich tracts that can be difficult to clone and sequence (Eichinger *et al.*, 2011). To create this near-perfect *de-novo* genome assembly, the authors applied data from contiguity methods that were commonly used at the time: genetic mapping (HAPPY maps), physical mapping (with YACs, *etc*.), and paired reads. Overall, this reference genome should prove to be an invaluable resource for studying this intriguing model amoeba.
 
-
+----
 
 ### References
 
