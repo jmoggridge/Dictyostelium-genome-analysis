@@ -1,24 +1,32 @@
 ---
 title: "Analysis of the *Dictyostelium discoideum* reference genome"
-subtitle: "BINF6110 Assignment 1"
 author: "Jason Moggridge 1159229"
 date: "29/01/2021"
 output: 
   pdf_document:
     highlight: haddock
     df_print: kable
+    extra_dependencies: ["flafter"]
 urlcolor: blue
 ---
 
 ------
 
-```{r setup, include=FALSE}
+```{r setup, echo=FALSE, message=FALSE}
 # Set so that long lines in R will be wrapped:
 # knit
-# knitr::opts_chunk$set(tidy.opts=list(width.cutoff=80), tidy=TRUE)
+knitr::opts_chunk$set(
+	message = FALSE,
+	warning = FALSE,
+	tidy = TRUE,
+	tidy.opts = list(width.cutoff = 80)
+)
+library(tidyverse, quietly = T)
+library(patchwork)
+library(rcartocolor)
 ```
 
-## Overview of *Dictyostelium discoideum* genome
+## Introduction
 
 In this work, I examine the reference genome of the social amoeba *Dictyostelium discoideum* (Eichinger *et al*., 2005). *D. discoideum* is a interesting model organism for many areas of research in molecular biology, particularly because of their ability to cooperatively form a multicellular super-organism for the purpose of sporulation under starvation conditions (Williams, 2010). The *de-novo* genome assembly was created by whole chromosome shotgun sequencing using the Sanger method. For this, chromosomes were separated using PFGE. Isolated chromosomes were fragmented and then cloned using plasmids and yeast artificial chromosomes (YACs). As this was among the first protozoan genome projects, there was no draft genome to guide contig assembly. As such, data from HAPPY mapping, previously mapped genes, and YACs were used in creating the assembly. HAPPY mapping is akin to linkage mapping but uses random DNA fragmentation and PCR to get distance information for markers (sequence-tagged sites in this case) instead of cloning (Dear and Cook, 1993). This information was used to assign reads from each library to chromosome-specific bins through `BLAST` or `Atlas Overlapper`. Binned reads were then joined into contigs by either `GAP4` or `PHRED/PHRAM/CONSED` software. Then read-pair data and `BLAST` searches of all sequence data were used to extend contigs and create scaffolds. Gap were closed by various strategies, depending on whether sequencing was challenged by repetitive or A+T rich regions. The authors presented an analysis of the genome's nucleotide composition, repeats, transposons, tRNAs, telomeres, and centromere regions. In addition, gene prediction and translation was performed to create a phylogeny to place *D. discoideum* among other eukaryotic phyla based on the predicted proteome.
 
@@ -26,41 +34,42 @@ In this work, I examine the reference genome of the social amoeba *Dictyostelium
 - [(Browse genome record on NCBI)](https://www.ncbi.nlm.nih.gov/assembly/GCF_000004695.1/)
 - [(Zipped FASTA file through ftp)](https://ftp.ncbi.nih.gov/genomes/refseq/protozoa/Dictyostelium_discoideum/all_assembly_versions/GCF_000004695.1_dicty_2.7/GCF_000004695.1_dicty_2.7_genomic.fna.gz)
 
-------
-
-## Analysis of genome
+## Analysis of the *D. discoideum* genome
   
 *Lines starting with '$' are unix commands and '#' are comments, otherwise lines are R code*
 
-I obtained the *Dictyostelium discoideum* reference genome from NCBI Refseq as follows:
+<!-- I obtained the *Dictyostelium discoideum* reference genome from NCBI Refseq as follows: -->
 
-```
-$ rsync rsync://ftp.ncbi.nih.gov/genomes/refseq/protozoa/Dictyostelium_discoideum/
-  all_assembly_versions/GCF_000004695.1_dicty_2.7/
-  GCF_000004695.1_dicty_2.7_genomic.fna.gz  ./
-$ gunzip GCF_000004695.1_dicty_2.7_genomic.fna.gz
-$ mv GCF_000004695.1_dicty_2.7_genomic.fna ./dicty_genome.fna
-```
+<!-- ``` -->
+<!-- $ rsync rsync://ftp.ncbi.nih.gov/genomes/refseq/protozoa/Dictyostelium_discoideum/ -->
+<!--   all_assembly_versions/GCF_000004695.1_dicty_2.7/ -->
+<!--   GCF_000004695.1_dicty_2.7_genomic.fna.gz  ./ -->
+<!-- $ gunzip GCF_000004695.1_dicty_2.7_genomic.fna.gz -->
+<!-- $ mv GCF_000004695.1_dicty_2.7_genomic.fna ./dicty_genome.fna -->
+<!-- ``` -->
 
-### Genome assembly size
+### The *D. discoideum* assembly has a size of 34.2 Mbp.
   
 ```
 # remove lines with headers (>), strip newline characters (\n), count characters
 $ grep -v '>' dicty_genome.fna | tr -d '\n' | wc -c
 ```
-The *D. discoideum* assembly has a size of 34.2 Mbp.  
-  
-  
-### Number of chromosomes/scaffolds
+
+### There are 41 scaffolds in the assembly.
+
+These include 6 genomic chromosomes, the mitochondrial chromosome and a plasmid chromosome, as well as 33 unplaced scaffolds.
 
 ```
 # count scaffold headings
 $ grep '>' dicty_genome.fna | wc -l
 ```
-There are 41 scaffolds in the assembly; these include 6 genomic chromosomes, the mitochondrial chromosome and a plasmid chromosome, as well as 33 unplaced scaffolds.
 
-### Scaffold lengths  
+```{r message=FALSE, warning=FALSE, echo = FALSE}
+seqlen <- read_delim('data/seqlens.tsv', '\t')
+```
+### The mean scaffold length is `r round(mean(seqlen$Length)/1000, 1)` kbp.   
 
+Scaffold lengths are plotted in fig. 1.
 ```
 # create a table with headings: Scaffold, Length
 $ touch seqlens.tsv
@@ -70,97 +79,66 @@ $ awk '/^>/ {if (seqlen){print seqlen}; printf $0"\t";seqlen=0;next; }
 {seqlen += length($0)}END{print seqlen}' dicty_genome.fna >> seqlens.tsv
 ```
 
-```{r fig.align='center', fig.height=2.5, fig.width=5, message=FALSE, warning=FALSE}
-library(tidyverse)
-library(patchwork)
-seqlen <- read_delim('data/seqlens.tsv', '\t')
-seqlen <- seqlen %>% 
-  arrange(desc(Length)) %>% 
-  mutate(Rank = row_number(),
-         Type = case_when(
-           str_detect(Scaffold, 'chrUn_') ~ 'Unplaced',
-           str_detect(Scaffold, 'plasmid') ~ 'Plasmid',
-           str_detect(Scaffold, 'mitochond') ~ 'Mitochondrial',
-           TRUE ~ 'Nuclear chr.')
-  )
-plt.title <- expression(paste('Fig. 1: ', italic("D. discoideum"), " scaffold lengths"))
-ggplot(seqlen) + 
-  geom_point(aes(x = Rank, y = Length, colour = Type)) +
-  scale_y_log10() +
-  labs(x='Scaffold', 
-       y = 'Scaffold length (bp)', 
-       subtitle = plt.title) +
-  theme(legend.position = 'right', 
-        legend.title = element_text(size = 8),
-        legend.text = element_text(size = 8))
-```
-
-The mean scaffold length is `r round(mean(seqlen$Length)/1000, 1)` kbp. Scaffold lengths are shown in fig. 1.
-
 
 ### N50 & L50
 
-I was able to recreate the N50 (5,450,249 bp) and L50 (3) statistics reported on NCBI as follows:
+I was able to recreate the N50  and L50 statistics reported on NCBI (5,450,249 bp and 3) as follows:
 
 ```{r}
 N50 <- function(scaffold_lengths){
   lengths <- sort(scaffold_lengths, decreasing = T)
-  total <- sum(lengths); cumul <- 0
+  total <- sum(lengths); cumsum <- 0
   for (i in seq_along(lengths)){
-    cumul <- cumul + lengths[i]
-    if (cumul >= total/2) return(lengths[i])
+    cumsum <- cumsum + lengths[i]
+    if (cumsum >= total/2) return(lengths[i])
   }
 }
+seqlen <- read_delim('data/seqlens.tsv', '\t')
 dicty.N50 <- N50(seqlen$Length)
 dicty.L50 <- which(sort(seqlen$Length, decreasing = T) == dicty.N50)
 ```
 
 
-### Ambiguous bases (Ns)
+### Ns are rare in the assembly (0.07 %).
 
 ```
-# Ncontent
+# N-content; total bp
 $ grep -v '^>' dicty_genome.fna | tr -cd 'Nn' | wc -c
-# 23142
-# Total
 $ grep -v '>' dicty_genome.fna | tr -d '\n' | wc -c
-# 34204973
 ```
 ```{r}
 N_percent <- 23142 * 100 / 34204973
 ```
+<!-- Only a very small portion (`r round(N_percent, 3)` %) of the assembly are ambiguous bases (N). -->
 
 
-Only a very small portion (`r round(N_percent, 3)` %) of the assembly are ambiguous bases (N).
-
-
-### Ratio of repetitive to unique sequence
+### The ratio of repetitive to unique sequence is `r round(18093064/16088767, 2)`.
 
 ```
-# repetitive regions bases count
+# repetitive; unique 
 $ grep -v '>' dicty_genome.fna | tr -d '\n' | tr -cd acgt | wc -c
-# 18093064
-# unique regions bases count
 $ grep -v '>' dicty_genome.fna | tr -d '\n' | tr -cd ACGT | wc -c
-# 16088767
+# 18093064, 16088767
 ```
 
-The ratio of repetitive to unique sequence is `r round(18093064/16088767, 2)`.
 
-### What proportion of the genome is unplaced scaffolds?
+### Table 1: Less than 1% of the assembly is in unplaced scaffolds
 
-```{r message=FALSE, warning=FALSE}
+```{r message=FALSE, warning=FALSE, tidy=FALSE}
+seqlen <- seqlen %>% 
+  mutate(Type = case_when(
+           str_detect(Scaffold, 'chrUn_') ~ 'Unplaced',
+           str_detect(Scaffold, 'plasmid') ~ 'Plasmid',
+           str_detect(Scaffold, 'mitochond') ~ 'Mitochondrial',
+           TRUE ~ 'Nuclear chr.'))
 seqlen %>% 
   group_by(Type) %>% 
   summarize(`Percent of Genome` = round(sum(Length)/sum(seqlen$Length)*100, 2))
 ```
 
-### Nucleotide frequencies
-
-I counted nucleotide frequencies as follows:
+**The *D. discoideum* genome is very A+T-rich**. All bases were counted and these are presented in fig. 1.
 ```
-$ touch base_count.csv
-$ echo "Base, Count" > base_count.csv
+$ touch base_count.csv; echo "Base, Count" > base_count.csv
 $ for base in A C G T a c g t
 $ do
 $   count=$(cat dicty_genome.fna | grep -v '>' | tr -cd $base | wc -c) 
@@ -168,36 +146,57 @@ $   echo "$base, $count" >> base_count.csv
 $ done
 ```
 
-```{r, fig.align='center', fig.height=4, fig.width=5}
+----
+
+```{r fig.height=3.85, fig.width=5.5, message=FALSE, warning=FALSE, echo=FALSE}
+
+ggplot2::theme_set(theme_classic())
+A <- seqlen %>% 
+  arrange(desc(Length)) %>% 
+  mutate(Rank = row_number()) %>% 
+  ggplot() + 
+  geom_point(aes(x = Rank, y = Length, colour = Type)) +
+  scale_y_log10() +
+  scale_color_carto_d() +
+  labs(x='Scaffold', y = 'Scaffold length (bp)') +
+  theme(legend.position = 'right', 
+        legend.title = element_text(size = 8),
+        legend.text = element_text(size = 8))
+
 base_comp <- read.csv('data/base_count.csv')
-a <- base_comp %>%  
+B <- base_comp %>%  
   mutate(Group = c(rep('Unique', 4), rep('Repetitive', 4)),
          Base = toupper(Base)) %>%
   ggplot() +
   geom_col(aes(x = Group, y = Count, fill = Base)) +
   labs(x = 'Type of sequence', y = 'Count')
-b <- base_comp %>% 
-  mutate(Base = toupper(Base),
-         Proportion = Count/sum(Count)) %>% 
+C <- base_comp %>% 
+  mutate(Base = toupper(Base), Proportion = Count/sum(Count)) %>% 
   ggplot() +
   geom_col(aes(x = 'Full genome', y = Proportion, fill = Base)) +
   labs(x = '')
-a+b + 
-  plot_annotation(title = 'Fig. 2: Nucleotide composition of assembly') +
-  plot_layout(guides= 'collect')
+BC <- B+C + plot_layout(widths = c(3.5,2), guides= 'collect')
+# create figure
+plt.title <- expression(paste(
+  'Figure 1: ', italic("D. discoideum"), 
+  " scaffold lengths and nucleotide composition"))
+
+A/(BC) + 
+  plot_annotation(
+    subtitle = plt.title, 
+    caption = expression(
+      italic("*Code not shown for brevity")),
+    tag_levels = 'A'
+    )
 ```
 
 
-----
 
 ## Discussion
 
 The *D. discoideum* reference genome is relatively small (34.2 Mbp) and the assembly is of remarkably high quality and completeness. The assembly has nearly complete scaffolds for the six nuclear chromosomes, with very few unplaced scaffolds (33; fig. 1). The percentage of the assembly in these unplaced scaffolds is only 0.56 %. Correspondingly, the assembly has a very large N50 (5.45 Mbp) and a very small L50 (3 scaffolds). The sequence data is of high quality, with only 0.07 % ambiguous bases (N). The genome contains a relatively even split between repetitive sequence and unique sequence (ratio = 1.12). 
-<!-- I was able to obtain the same values in my analysis as are reported in the NCBI record of the assembly. -->
 
 The  quality of the genome is surprisingly good, given that the effort was reliant on cloning and Sanger sequencing technology of the time, and dealt with complex repetitive regions that are difficult to assemble, as well as A+T-rich tracts (fig. 2) that can be difficult to clone and sequence (Eichinger *et al.*, 2011). To create this near-perfect *de-novo* genome assembly, the authors applied data from contiguity methods that were commonly used at the time: genetic mapping (HAPPY maps), physical mapping (with YACs, *etc*.), and paired reads. Overall, this reference genome should prove to be an invaluable resource for studying this intriguing model amoeba.
-
-----
 
 ### References
 
