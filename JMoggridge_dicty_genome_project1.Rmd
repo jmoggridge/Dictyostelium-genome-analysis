@@ -34,6 +34,9 @@ In this work, I examine the reference genome of the social amoeba *Dictyostelium
 - [(Browse genome record on NCBI)](https://www.ncbi.nlm.nih.gov/assembly/GCF_000004695.1/)
 - [(Zipped FASTA file through ftp)](https://ftp.ncbi.nih.gov/genomes/refseq/protozoa/Dictyostelium_discoideum/all_assembly_versions/GCF_000004695.1_dicty_2.7/GCF_000004695.1_dicty_2.7_genomic.fna.gz)
 
+
+----
+
 ## Analysis of the *D. discoideum* genome
   
 *Lines starting with '$' are unix commands and '#' are comments, otherwise lines are R code*
@@ -185,7 +188,7 @@ A/(BC) +
   plot_annotation(
     subtitle = plt.title, 
     caption = expression(
-      italic("*Code not shown for brevity")),
+      italic("*Code omitted for brevity")),
     tag_levels = 'A'
     )
 ```
@@ -198,7 +201,9 @@ The *D. discoideum* reference genome is relatively small (34.2 Mbp) and the asse
 
 The  quality of the genome is surprisingly good, given that the effort was reliant on cloning and Sanger sequencing technology of the time, and dealt with complex repetitive regions that are difficult to assemble, as well as A+T-rich tracts (fig. 2) that can be difficult to clone and sequence (Eichinger *et al.*, 2011). To create this near-perfect *de-novo* genome assembly, the authors applied data from contiguity methods that were commonly used at the time: genetic mapping (HAPPY maps), physical mapping (with YACs, *etc*.), and paired reads. Overall, this reference genome should prove to be an invaluable resource for studying this intriguing model amoeba.
 
-### References
+----
+
+## References
 
 - Dear PH, and PR Cook. 1993. Happy mapping: linkage mapping using a physical analogue of meiosis. *Nucleic Acids Res*. 11; 21(1): 13–20.
 
