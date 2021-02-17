@@ -1,7 +1,4 @@
 ---
-title: "Analysis of the *Dictyostelium discoideum* reference genome"
-author: "Jason Moggridge 1159229"
-date: "29/01/2021"
 output: 
   pdf_document:
     highlight: haddock
@@ -9,6 +6,12 @@ output:
     extra_dependencies: ["flafter"]
 urlcolor: blue
 ---
+
+# Summary statistics and quality of the *Dictyostelium discoideum* reference genome assembly
+
+#### Jason Moggridge
+
+#### 29/01/2021
 
 ------
 
